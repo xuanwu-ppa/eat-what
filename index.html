@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>今天吃哪間</title>
+<meta name="theme-color" content="#B8241C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="吃哪間">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A5%A2%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#FBF8F1; --ink:#22201C; --muted:#6E675C; --line:#E4DCCB;
+  --lacquer:#B8241C; --on-lacquer:#FFFFFF; --stick:#E6C98F; --stick-edge:#B8955A;
+  --jade:#2E6B57; --chip:#F1EADB; --chip-on:#22201C; --chip-on-ink:#FBF8F1;
+  --slip:#FFFDF7; --warn-bg:#FBEDE9;
+  --serif:"Noto Serif TC","Songti TC","PMingLiU",serif;
+  --sans:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --paper:#17120F; --ink:#F2EADB; --muted:#A99F8E; --line:#3A302A;
+    --lacquer:#D9443A; --on-lacquer:#FFFFFF; --stick:#D9B97C; --stick-edge:#9C7B45;
+    --jade:#6FB39A; --chip:#2A221D; --chip-on:#F2EADB; --chip-on-ink:#17120F;
+    --slip:#221B17; --warn-bg:#2E1B17;
+    color-scheme:dark;
+  }
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.6;-webkit-text-size-adjust:100%}
+main{max-width:480px;margin:0 auto;padding:20px 20px 40px}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--lacquer);outline-offset:2px}
+a{color:var(--lacquer)}
+[hidden]{display:none!important}
+
+/* header */
+.top{display:flex;align-items:center;justify-content:space-between;margin:4px 0 20px}
+h1{font-family:var(--serif);font-weight:900;font-size:2.1rem;line-height:1.15;margin:0;letter-spacing:.04em}
+h2{font-family:var(--serif);font-weight:900;font-size:1.5rem;line-height:1.3;margin:0 0 12px}
+.icon-btn{border:0;background:transparent;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--muted)}
+.icon-btn svg{width:24px;height:24px}
+.back{border:0;background:none;padding:8px 0;color:var(--muted);font-size:.95rem;margin-bottom:8px}
+
+/* filters */
+.group{margin-bottom:16px}
+.group-label{font-size:.85rem;color:var(--muted);margin-bottom:6px}
+.seg{display:flex;flex-wrap:wrap;gap:8px}
+.seg button{border:1px solid var(--line);background:var(--chip);border-radius:8px;padding:8px 14px;font-size:.95rem;min-height:40px}
+.seg button[aria-pressed="true"]{background:var(--chip-on);color:var(--chip-on-ink);border-color:var(--chip-on)}
+.switches{display:flex;flex-direction:column;gap:10px;margin:20px 0 4px}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:.95rem}
+.switch input{appearance:none;-webkit-appearance:none;width:46px;height:28px;border-radius:14px;background:var(--line);position:relative;flex:none;margin:0;transition:background .15s}
+.switch input::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:var(--paper);transition:transform .15s}
+.switch input:checked{background:var(--jade)}
+.switch input:checked::after{transform:translateX(18px)}
+
+/* draw */
+.draw{display:flex;flex-direction:column;align-items:center;margin-top:24px}
+.tube{width:112px;height:150px;transform-origin:50% 90%}
+.tube.shake{animation:shake .7s ease-in-out}
+@keyframes shake{0%,100%{transform:rotate(0)}15%{transform:rotate(-9deg)}30%{transform:rotate(8deg)}45%{transform:rotate(-7deg)}60%{transform:rotate(6deg)}75%{transform:rotate(-3deg)}}
+.primary{width:100%;min-height:58px;border:0;border-radius:12px;background:var(--lacquer);color:var(--on-lacquer);font-family:var(--serif);font-weight:900;font-size:1.4rem;letter-spacing:.2em;margin-top:8px}
+.primary:disabled{opacity:.6;cursor:wait;letter-spacing:.05em;font-size:1.1rem}
+
+/* result */
+.result{margin-top:28px;display:grid;grid-template-columns:92px 1fr;gap:18px;align-items:start}
+.result.enter{animation:rise .45s ease-out}
+@keyframes rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+.slip{background:var(--slip);border:2px solid var(--lacquer);border-radius:4px;min-height:290px;display:flex;flex-direction:column;overflow:hidden}
+.slip-no{background:var(--lacquer);color:var(--on-lacquer);text-align:center;font-family:var(--serif);font-weight:700;font-size:.85rem;padding:4px 0}
+.slip-name{writing-mode:vertical-rl;text-orientation:mixed;font-family:var(--serif);font-weight:900;line-height:1.15;letter-spacing:.06em;padding:14px 8px;margin:0 auto;max-height:420px;overflow-wrap:anywhere}
+.info{min-width:0}
+.kind{font-family:var(--serif);font-weight:700;color:var(--lacquer);font-size:1.05rem;margin:0 0 8px}
+.row{margin:0 0 6px;font-size:.98rem}
+.row.open::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--jade);margin-right:8px;vertical-align:middle}
+.row.closed::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--muted);margin-right:8px;vertical-align:middle}
+.addr{color:var(--muted);font-size:.85rem;margin:8px 0 14px}
+.actions{display:flex;flex-direction:column;gap:8px}
+.btn{display:block;text-align:center;text-decoration:none;min-height:46px;padding:11px 14px;border-radius:10px;font-size:1rem;font-weight:700}
+.btn-ink{background:var(--ink);color:var(--paper);border:0}
+.btn-line{background:transparent;color:var(--ink);border:1.5px solid var(--ink)}
+.count{grid-column:1 / -1;color:var(--muted);font-size:.85rem;margin:0}
+.hint{grid-column:1 / -1;background:var(--chip);border-radius:10px;padding:12px 14px;font-size:.92rem;margin:0}
+.hint button{margin-top:8px}
+
+/* messages */
+.msg{margin-top:24px;background:var(--warn-bg);border-left:4px solid var(--lacquer);border-radius:6px;padding:14px 16px}
+.msg strong{display:block;margin-bottom:4px}
+.msg p{margin:0 0 4px;font-size:.95rem}
+.msg-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.small-btn{border:1.5px solid var(--ink);background:transparent;border-radius:8px;padding:7px 12px;font-size:.92rem}
+
+/* setup / settings / guide */
+.lead{color:var(--muted);margin:0 0 20px}
+label.field{display:block;font-size:.9rem;color:var(--muted);margin-bottom:6px}
+.input{width:100%;min-height:48px;border:1.5px solid var(--line);border-radius:10px;background:var(--slip);padding:10px 12px;font-family:ui-monospace,Menlo,monospace;font-size:.95rem}
+.error{color:var(--lacquer);font-size:.9rem;margin:8px 0 0}
+.stack{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.note{font-size:.88rem;color:var(--muted);margin-top:20px}
+.panel{border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+.panel p{margin:0}
+.steps{list-style:none;counter-reset:s;padding:0;margin:0}
+.steps li{counter-increment:s;position:relative;padding:0 0 22px 46px}
+.steps li::before{content:counter(s);position:absolute;left:0;top:0;width:32px;height:32px;border-radius:50%;background:var(--lacquer);color:var(--on-lacquer);font-family:var(--serif);font-weight:900;display:grid;place-items:center}
+.steps h3{font-size:1.05rem;margin:2px 0 6px}
+.steps p{margin:0 0 6px;font-size:.95rem}
+.path{display:inline-block;background:var(--chip);border:1px solid var(--line);border-radius:6px;padding:0 7px;font-size:.9rem;margin:1px 0;white-space:nowrap}
+.copybox{display:flex;gap:8px;align-items:stretch;margin:8px 0}
+.copybox code{flex:1;min-width:0;overflow-x:auto;white-space:nowrap;background:var(--slip);border:1.5px dashed var(--stick-edge);border-radius:8px;padding:10px;font-size:.88rem}
+.copybox button{flex:none;border:0;background:var(--ink);color:var(--paper);border-radius:8px;padding:0 14px;font-weight:700}
+.callout{background:var(--chip);border-radius:10px;padding:12px 14px;font-size:.92rem;margin:4px 0 22px}
+footer{margin-top:36px;color:var(--muted);font-size:.78rem;text-align:center}
+
+@media (prefers-reduced-motion:reduce){
+  .tube.shake,.result.enter{animation:none}
+  .switch input,.switch input::after{transition:none}
+}
+</style>
+</head>
+<body>
+<main>
+
+<!-- ============ 設定金鑰 ============ -->
+<section class="screen" id="setup" hidden>
+  <h1 style="margin-bottom:16px">今天吃哪間</h1>
+  <p class="lead">第一次使用，請貼上你自己的 Google 地圖 API 金鑰。金鑰只會存在這支手機的瀏覽器裡，不會上傳到任何地方。</p>
+  <label class="field" for="keyInput">你的 API 金鑰</label>
+  <input class="input" id="keyInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="AIza 開頭的一串英數字">
+  <p class="error" id="keyError" hidden></p>
+  <div class="stack">
+    <button class="primary" id="saveKey" style="font-size:1.1rem;letter-spacing:.1em">儲存金鑰</button>
+    <button class="btn btn-line" data-guide>還沒有金鑰？看取得教學</button>
+  </div>
+</section>
+
+<!-- ============ 主畫面 ============ -->
+<section class="screen" id="main" hidden>
+  <div class="top">
+    <h1>今天吃哪間</h1>
+    <button class="icon-btn" id="openSettings" aria-label="設定">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </div>
+
+  <div class="group">
+    <div class="group-label">距離</div>
+    <div class="seg" data-key="distance">
+      <button data-value="walk">步行 10 分鐘內</button>
+      <button data-value="scooter">機車 10 分鐘內</button>
+    </div>
+  </div>
+  <div class="group">
+    <div class="group-label">每人價格</div>
+    <div class="seg" data-key="price">
+      <button data-value="any">不限</button>
+      <button data-value="low">100–200</button>
+      <button data-value="mid">200–400</button>
+      <button data-value="high">400 以上</button>
+    </div>
+  </div>
+  <div class="group">
+    <div class="group-label">種類</div>
+    <div class="seg" data-key="cuisine">
+      <button data-value="any">不限</button>
+      <button data-value="tw">台式</button>
+      <button data-value="jp">日式</button>
+      <button data-value="sea">東南亞</button>
+      <button data-value="other">其他</button>
+    </div>
+  </div>
+  <div class="switches">
+    <label class="switch"><span>只看營業中</span><input type="checkbox" id="openOnly"></label>
+    <label class="switch"><span>包含沒標價格的店</span><input type="checkbox" id="includeUnpriced"></label>
+  </div>
+
+  <div class="draw">
+    <svg class="tube" id="tube" viewBox="0 0 112 150" aria-hidden="true">
+      <g stroke="var(--stick-edge)" stroke-width="1.5">
+        <rect x="30" y="8" width="9" height="80" rx="2" fill="var(--stick)" transform="rotate(-10 34 88)"/>
+        <rect x="44" y="2" width="9" height="86" rx="2" fill="var(--stick)" transform="rotate(-3 48 88)"/>
+        <rect x="58" y="0" width="9" height="88" rx="2" fill="var(--stick)" transform="rotate(4 62 88)"/>
+        <rect x="72" y="10" width="9" height="78" rx="2" fill="var(--stick)" transform="rotate(11 76 88)"/>
+      </g>
+      <path d="M22 56 h68 v76 a10 10 0 0 1 -10 10 h-48 a10 10 0 0 1 -10 -10z" fill="var(--lacquer)"/>
+      <rect x="22" y="56" width="68" height="8" fill="var(--stick)" opacity=".85"/>
+      <rect x="22" y="126" width="68" height="5" fill="var(--stick)" opacity=".85"/>
+      <text x="56" y="108" text-anchor="middle" font-family="Noto Serif TC, serif" font-weight="900" font-size="30" fill="var(--on-lacquer)">吃</text>
+    </svg>
+    <button class="primary" id="drawBtn">抽一間</button>
+  </div>
+
+  <div class="msg" id="msg" hidden></div>
+  <div id="result" hidden></div>
+
+  <footer>餐廳資料來自 Google 地圖</footer>
+</section>
+
+<!-- ============ 設定 ============ -->
+<section class="screen" id="settings" hidden>
+  <button class="back" data-back="main">‹ 返回</button>
+  <h2>設定</h2>
+  <div class="panel"><p>目前使用的金鑰：<strong id="maskedKey"></strong></p></div>
+  <div class="stack">
+    <button class="btn btn-ink" id="changeKey">更換金鑰</button>
+    <button class="btn btn-line" data-guide>取得金鑰教學</button>
+    <button class="btn btn-line" id="clearKey">從這支手機清除金鑰</button>
+  </div>
+  <p class="note">要分享給朋友，直接傳這個網頁的網址就好。每個人用自己的金鑰，費用各自計算，你的金鑰不會出現在網頁裡。</p>
+</section>
+
+<!-- ============ 教學 ============ -->
+<section class="screen" id="guide" hidden>
+  <button class="back" id="guideBack">‹ 返回</button>
+  <h2>取得你自己的 Google 金鑰</h2>
+  <p class="lead">大約 10 分鐘。Google 介面偶爾改版，按鈕名稱可能略有不同，找意思相近的即可。</p>
+
+  <div class="callout">
+    <strong>會花錢嗎？</strong><br>
+    Google 要求綁信用卡，但每月有免費額度。換地點、距離或種類後第一次抽，會查詢 2 到 3 次；之後按「再抽一次」不會再查詢。每月免費的查詢次數，一般日常吃飯用不完。第 7 步會教你設上限，避免意外。
+  </div>
+
+  <ol class="steps">
+    <li>
+      <h3>登入 Google Cloud</h3>
+      <p>打開 <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud 主控台</a>，用你的 Google 帳號登入。第一次使用會請你同意服務條款。</p>
+    </li>
+    <li>
+      <h3>建立專案</h3>
+      <p>點畫面左上角的專案選單，選 <span class="path">新增專案</span>，名稱可以填「吃哪間」，按建立。完成後確認左上角已切換到這個專案。</p>
+    </li>
+    <li>
+      <h3>綁定帳單</h3>
+      <p>打開左側選單的 <span class="path">帳單</span>，依畫面指示建立帳單帳戶並輸入信用卡，再把它連結到剛剛的專案。</p>
+    </li>
+    <li>
+      <h3>啟用兩個服務</h3>
+      <p>到 <span class="path">API 和服務</span> → <span class="path">程式庫</span>，分別搜尋下面兩個並按「啟用」：</p>
+      <p><span class="path">Maps JavaScript API</span><br><span class="path">Places API (New)</span></p>
+      <p>注意第二個要選名稱有 (New) 的那個。</p>
+    </li>
+    <li>
+      <h3>建立金鑰</h3>
+      <p>到 <span class="path">API 和服務</span> → <span class="path">憑證</span> → <span class="path">建立憑證</span> → <span class="path">API 金鑰</span>，畫面會跳出一串 AIza 開頭的金鑰，先複製起來。</p>
+    </li>
+    <li>
+      <h3>把金鑰鎖在這個網站（很重要）</h3>
+      <p>在憑證頁點進剛建立的金鑰：</p>
+      <p>「應用程式限制」選 <span class="path">網站</span>，新增下面這個網址：</p>
+      <div class="copybox"><code id="siteRule"></code><button id="copyRule">複製</button></div>
+      <p id="fileWarn" class="error" hidden>這個網頁還沒放上網路，請先完成架設，再回來複製正式網址。</p>
+      <p>「API 限制」選 <span class="path">限制金鑰</span>，勾選第 4 步的兩個服務，然後儲存。這樣就算金鑰被別人看到，在其他網站也用不了。</p>
+    </li>
+    <li>
+      <h3>設定用量上限</h3>
+      <p>到 <span class="path">API 和服務</span> → <span class="path">已啟用的 API 和服務</span> → <span class="path">Places API (New)</span> → <span class="path">配額與系統限制</span>，把查詢次數上限調低。如果有「每日」上限，建議設為 30。</p>
+      <p>也可以到 <span class="path">帳單</span> → <span class="path">預算與快訊</span> 設一個小額預算，超過時 Google 會寄信通知你。</p>
+    </li>
+    <li>
+      <h3>貼回這個網頁</h3>
+      <p>回到首頁貼上金鑰並儲存。剛設定好的金鑰有時要等幾分鐘才會生效，第一次抽不到可以稍等再試。</p>
+    </li>
+  </ol>
+  <button class="btn btn-ink" id="guideDone" style="width:100%">我有金鑰了，去貼上</button>
+</section>
+
+</main>
+
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const KEY_STORE = 'eatwhat.apiKey';
+  const PREF_STORE = 'eatwhat.prefs';
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+    del(k) { try { localStorage.removeItem(k); } catch (e) {} }
+  };
+
+  // ---------- 設定值 ----------
+  const RADIUS = { walk: 700, scooter: 3000 };          // 公尺
+  const CUISINE_LABEL = { tw: '台式', jp: '日式', sea: '東南亞', other: '其他' };
+  const CACHE_MINUTES = 15;
+
+  const JP_TYPES = ['japanese_restaurant', 'ramen_restaurant', 'sushi_restaurant'];
+  const SEA_TYPES = ['thai_restaurant', 'vietnamese_restaurant', 'indonesian_restaurant'];
+  // 只用來判斷分類（不會送給 Google）
+  const JP_TYPE_HINTS = JP_TYPES.concat(['japanese_izakaya_restaurant', 'izakaya_restaurant', 'yakiniku_restaurant', 'yakitori_restaurant', 'tonkatsu_restaurant', 'japanese_curry_restaurant']);
+  const SEA_TYPE_HINTS = SEA_TYPES.concat(['malaysian_restaurant', 'singaporean_restaurant', 'filipino_restaurant', 'burmese_restaurant', 'southeast_asian_restaurant']);
+  const FOREIGN_TYPES = ['italian_restaurant', 'american_restaurant', 'korean_restaurant', 'indian_restaurant', 'mexican_restaurant', 'french_restaurant', 'mediterranean_restaurant', 'pizza_restaurant', 'hamburger_restaurant', 'spanish_restaurant', 'greek_restaurant', 'turkish_restaurant', 'middle_eastern_restaurant', 'lebanese_restaurant', 'brazilian_restaurant', 'brunch_restaurant', 'fast_food_restaurant'];
+  const JP_KW = ['拉麵', 'ラーメン', '壽司', '寿司', '丼', '定食', '居酒屋', '燒肉', '焼肉', '日式', '和食', '烏龍', '天婦羅', '豬排', 'とんかつ', '串燒', '日本料理', '壽喜燒', '關東煮', '鰻'];
+  const SEA_KW = ['泰', '越南', '河粉', '南洋', '馬來', '印尼', '星馬', '新加坡', '打拋', '緬甸', '叻沙', '海南雞'];
+  const TW_KW = ['小吃', '麵', '飯', '便當', '滷', '魯肉', '熱炒', '快炒', '鍋貼', '水餃', '臭豆腐', '豆花', '肉圓', '蚵仔', '擔仔', '粥', '米粉', '粿', '雞排', '鹽酥', '鹹酥', '台式', '臺式', '古早味', '自助餐', '麵線', '排骨', '控肉', '焢肉', '湯包', '小籠', '豆漿', '滷味', '切仔'];
+  const FOOD_TYPES = ['restaurant', 'food', 'meal_takeaway', 'meal_delivery'];
+
+  const FIELDS = ['id', 'displayName', 'location', 'types', 'primaryType', 'primaryTypeDisplayName',
+    'formattedAddress', 'googleMapsURI', 'businessStatus', 'rating', 'userRatingCount',
+    'priceLevel', 'priceRange', 'regularOpeningHours', 'utcOffsetMinutes'];
+
+  // ---------- 狀態 ----------
+  const defaults = { distance: 'walk', price: 'any', cuisine: 'any', openOnly: true, includeUnpriced: true };
+  const state = Object.assign({}, defaults, loadPrefs());
+  let placesLib = null, mapsPromise = null, authFailed = false;
+  let pool = [], poolKey = null, shown = new Set(), current = null, drawCount = 0, busy = false;
+  let lastPos = null, lastPosTime = 0, guideReturn = 'setup';
+  const cache = new Map();
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function loadPrefs() {
+    try {
+      const p = JSON.parse(store.get(PREF_STORE) || '{}');
+      const out = {};
+      for (const k of Object.keys(defaults)) if (k in p && typeof p[k] === typeof defaults[k]) out[k] = p[k];
+      return out;
+    } catch (e) { return {}; }
+  }
+  function savePrefs() { store.set(PREF_STORE, JSON.stringify(state)); }
+
+  // ---------- 畫面切換 ----------
+  function show(id) {
+    document.querySelectorAll('.screen').forEach((s) => { s.hidden = s.id !== id; });
+    window.scrollTo(0, 0);
+  }
+
+  // ---------- 篩選按鈕 ----------
+  function renderControls() {
+    document.querySelectorAll('.seg').forEach((seg) => {
+      const key = seg.dataset.key;
+      seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.value === state[key])));
+    });
+    $('#openOnly').checked = state.openOnly;
+    $('#includeUnpriced').checked = state.includeUnpriced;
+  }
+  function setFilter(key, value) {
+    state[key] = value;
+    savePrefs();
+    renderControls();
+    shown.clear();
+  }
+  document.querySelectorAll('.seg').forEach((seg) => {
+    seg.addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (b) setFilter(seg.dataset.key, b.dataset.value);
+    });
+  });
+  $('#openOnly').addEventListener('change', (e) => setFilter('openOnly', e.target.checked));
+  $('#includeUnpriced').addEventListener('change', (e) => setFilter('includeUnpriced', e.target.checked));
+
+  // ---------- 載入 Google 地圖 ----------
+  function loadMaps(key) {
+    return new Promise((resolve, reject) => {
+      window.__mapsReady = () => resolve();
+      window.gm_authFailure = () => { authFailed = true; showMessage(explain({ code: 'auth' })); };
+      const s = document.createElement('script');
+      s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key) +
+        '&v=weekly&loading=async&language=zh-TW&region=TW&callback=__mapsReady';
+      s.async = true;
+      s.onerror = () => reject(Object.assign(new Error('load'), { code: 'maps-load' }));
+      document.head.appendChild(s);
+    }).then(() => google.maps.importLibrary('places')).then((lib) => { placesLib = lib; });
+  }
+
+  // ---------- 定位 ----------
+  function getPosition() {
+    if (lastPos && Date.now() - lastPosTime < 2 * 60 * 1000) return Promise.resolve(lastPos);
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) return reject({ code: 'geo-none' });
+      navigator.geolocation.getCurrentPosition(
+        (p) => { lastPos = { lat: p.coords.latitude, lng: p.coords.longitude }; lastPosTime = Date.now(); resolve(lastPos); },
+        (err) => reject({ code: err.code === 1 ? 'geo-denied' : 'geo-fail' }),
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
+      );
+    });
+  }
+
+  // ---------- 工具 ----------
+  function distanceM(a, b) {
+    const R = 6371000, toR = Math.PI / 180;
+    const dLat = (b.lat - a.lat) * toR, dLng = (b.lng - a.lng) * toR;
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * toR) * Math.cos(b.lat * toR) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+  function boundsFor(c, r) {
+    const dLat = r / 111320, dLng = r / (111320 * Math.cos(c.lat * Math.PI / 180));
+    return { north: c.lat + dLat, south: c.lat - dLat, east: c.lng + dLng, west: c.lng - dLng };
+  }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  }
+  const hasAny = (arr, list) => (arr || []).some((t) => list.includes(t));
+  const nameHas = (name, list) => list.some((k) => name.includes(k));
+
+  // ---------- 搜尋餐廳 ----------
+  function searchPlan(cuisine) {
+    const nearby = (included, rank, excluded) => ({ kind: 'nearby', included, rank, excluded });
+    const text = (q) => ({ kind: 'text', q, hint: 'tw' });
+    const excl = JP_TYPES.concat(SEA_TYPES);
+    switch (cuisine) {
+      case 'tw': return [text('台式料理'), text('小吃'), text('便當 麵店')];
+      case 'jp': return [nearby(JP_TYPES, 'POPULARITY'), nearby(JP_TYPES, 'DISTANCE')];
+      case 'sea': return [nearby(SEA_TYPES, 'POPULARITY'), nearby(SEA_TYPES, 'DISTANCE')];
+      case 'other': return [nearby(['restaurant'], 'POPULARITY', excl), nearby(['restaurant'], 'DISTANCE', excl)];
+      default: return [nearby(['restaurant'], 'POPULARITY'), nearby(['restaurant'], 'DISTANCE'), text('小吃')];
+    }
+  }
+
+  async function runQuery(step, center, radius) {
+    const { Place, SearchNearbyRankPreference } = placesLib;
+    let res;
+    if (step.kind === 'nearby') {
+      const req = {
+        fields: FIELDS,
+        locationRestriction: { center, radius },
+        includedTypes: step.included,
+        rankPreference: SearchNearbyRankPreference[step.rank]
+      };
+      if (step.excluded) req.excludedPrimaryTypes = step.excluded;
+      res = await Place.searchNearby(req);
+    } else {
+      res = await Place.searchByText({ textQuery: step.q, fields: FIELDS, locationRestriction: boundsFor(center, radius) });
+    }
+    return (res.places || []).map((p) => ({ p, hint: step.hint || null }));
+  }
+
+  function classify(p, hint) {
+    const types = p.types || [];
+    const name = p.displayName || '';
+    if (hasAny(types, JP_TYPE_HINTS)) return 'jp';
+    if (hasAny(types, SEA_TYPE_HINTS)) return 'sea';
+    if (types.includes('taiwanese_restaurant')) return 'tw';
+    if (hasAny(types, FOREIGN_TYPES)) return 'other';
+    if (nameHas(name, JP_KW)) return 'jp';
+    if (nameHas(name, SEA_KW)) return 'sea';
+    if (nameHas(name, TW_KW)) return 'tw';
+    if (hint === 'tw') return 'tw';
+    return 'other';
+  }
+
+  function priceInfo(p) {
+    const pr = p.priceRange;
+    if (pr && pr.startPrice) {
+      const s = Number(pr.startPrice.units) || 0;
+      const e = pr.endPrice ? Number(pr.endPrice.units) : null;
+      const bucket = s < 200 ? 'low' : s < 400 ? 'mid' : 'high';
+      let text;
+      if (e && s <= 1) text = '每人 $' + e + ' 以內';
+      else if (e) text = '每人 $' + s + '–' + e;
+      else text = '每人 $' + s + ' 以上';
+      return { bucket, text };
+    }
+    const lv = p.priceLevel ? String(p.priceLevel).toUpperCase() : '';
+    const map = { INEXPENSIVE: ['low', '平價（$）'], MODERATE: ['mid', '中等價位（$$）'], EXPENSIVE: ['high', '偏高價位（$$$）'], VERY_EXPENSIVE: ['high', '高價位（$$$$）'] };
+    if (map[lv]) return { bucket: map[lv][0], text: map[lv][1] };
+    return { bucket: null, text: '未標示價格' };
+  }
+
+  async function buildPool(center, distance, cuisine) {
+    const radius = RADIUS[distance];
+    const settled = await Promise.allSettled(searchPlan(cuisine).map((s) => runQuery(s, center, radius)));
+    const ok = settled.filter((r) => r.status === 'fulfilled');
+    if (!ok.length) throw settled[0].reason;
+
+    const seen = new Map();
+    for (const r of ok) for (const item of r.value) if (!seen.has(item.p.id)) seen.set(item.p.id, item);
+
+    const items = [];
+    for (const { p, hint } of seen.values()) {
+      if (!p.location) continue;
+      if (p.businessStatus && p.businessStatus !== 'OPERATIONAL') continue;
+      if (!hasAny(p.types, FOOD_TYPES)) continue;
+      const loc = { lat: p.location.lat(), lng: p.location.lng() };
+      const d = distanceM(center, loc);
+      if (d > radius) continue;
+      items.push({ p, hint, d });
+    }
+    const openStates = await Promise.all(items.map(({ p }) => p.isOpen().catch(() => undefined)));
+    return items.map(({ p, hint, d }, i) => {
+      const price = priceInfo(p);
+      return {
+        id: p.id,
+        name: p.displayName || '（沒有名稱）',
+        cuisine: classify(p, hint),
+        typeLabel: p.primaryTypeDisplayName || '',
+        dist: d,
+        address: p.formattedAddress || '',
+        url: p.googleMapsURI || ('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.displayName || '') + '&query_place_id=' + encodeURIComponent(p.id)),
+        rating: typeof p.rating === 'number' ? p.rating : null,
+        count: p.userRatingCount || 0,
+        priceBucket: price.bucket,
+        priceText: price.text,
+        open: openStates[i]
+      };
+    });
+  }
+
+  function eligible() {
+    return pool.filter((r) =>
+      (state.cuisine === 'any' || r.cuisine === state.cuisine) &&
+      (state.price === 'any' ? true : r.priceBucket === null ? state.includeUnpriced : r.priceBucket === state.price) &&
+      (!state.openOnly || r.open !== false)
+    );
+  }
+
+  // ---------- 抽籤 ----------
+  async function draw() {
+    if (busy) return;
+    if (authFailed) { showMessage(explain({ code: 'auth' })); return; }
+    busy = true;
+    const btn = $('#drawBtn');
+    btn.disabled = true; btn.textContent = '找附近的餐廳…';
+    hideMessage();
+    const tube = $('#tube');
+    tube.classList.remove('shake'); void tube.getBoundingClientRect(); tube.classList.add('shake');
+    const minWait = reduceMotion ? Promise.resolve() : new Promise((r) => setTimeout(r, 700));
+    try {
+      if (!placesLib) await mapsPromise;
+      if (!placesLib) throw { code: 'maps-load' };
+      const pos = await getPosition();
+      const key = pos.lat.toFixed(3) + ',' + pos.lng.toFixed(3) + '|' + state.distance + '|' + state.cuisine;
+      const hit = cache.get(key);
+      if (hit && Date.now() - hit.t < CACHE_MINUTES * 60000) {
+        pool = hit.pool;
+      } else {
+        pool = await buildPool(pos, state.distance, state.cuisine);
+        cache.set(key, { t: Date.now(), pool });
+      }
+      if (key !== poolKey) { poolKey = key; shown.clear(); }
+      await minWait;
+      pick();
+    } catch (e) {
+      await minWait;
+      showMessage(explain(e));
+    } finally {
+      busy = false;
+      btn.disabled = false; btn.textContent = '抽一間';
+    }
+  }
+
+  function pick() {
+    const list = eligible();
+    if (!list.length) { $('#result').hidden = true; showEmpty(); return; }
+    let fresh = list.filter((r) => !shown.has(r.id));
+    let cycled = false;
+    if (!fresh.length) {
+      shown.clear(); cycled = true;
+      fresh = list.length > 1 && current ? list.filter((r) => r.id !== current.id) : list;
+    }
+    const r = fresh[Math.floor(Math.random() * fresh.length)];
+    shown.add(r.id); current = r; drawCount++;
+    renderResult(r, list.length, cycled);
+  }
+
+  function distanceText(d) {
+    if (state.distance === 'walk') return '步行約 ' + Math.max(1, Math.round(d / 80)) + ' 分鐘（' + Math.round(d) + ' 公尺）';
+    const dist = d < 1000 ? Math.round(d) + ' 公尺' : (d / 1000).toFixed(1) + ' 公里';
+    return '機車約 ' + Math.max(1, Math.round(d / 300)) + ' 分鐘（' + dist + '）';
+  }
+
+  function renderResult(r, total, cycled) {
+    const nameLen = [...r.name].length;
+    const size = Math.max(18, Math.min(38, Math.floor(250 / Math.max(nameLen, 1))));
+    const kind = CUISINE_LABEL[r.cuisine] + (r.typeLabel ? '｜' + r.typeLabel : '');
+    const openRow = r.open === true ? '<p class="row open">營業中</p>'
+      : r.open === false ? '<p class="row closed">目前休息中</p>'
+      : '<p class="row closed">營業時間未標示</p>';
+    const rating = r.rating ? '<p class="row">★ ' + r.rating.toFixed(1) + '（' + r.count.toLocaleString('zh-TW') + ' 則評論）</p>' : '';
+    const few = total < 3 && state.distance === 'walk'
+      ? '<p class="hint">附近符合條件的店不多。<br><button class="small-btn" data-fix="scooter">改成機車範圍再抽</button></p>' : '';
+    const cycleNote = cycled ? '<p class="count">符合條件的店都抽過一輪了，重新開始。</p>' : '';
+    const el = $('#result');
+    el.className = 'result';
+    el.innerHTML =
+      '<div class="slip"><div class="slip-no">第 ' + drawCount + ' 籤</div>' +
+      '<div class="slip-name" style="font-size:' + size + 'px">' + esc(r.name) + '</div></div>' +
+      '<div class="info">' +
+        '<p class="kind">' + esc(kind) + '</p>' +
+        '<p class="row">' + distanceText(r.dist) + '</p>' +
+        '<p class="row">' + esc(r.priceText) + '</p>' +
+        rating + openRow +
+        '<p class="addr">' + esc(r.address) + '</p>' +
+        '<div class="actions">' +
+          '<a class="btn btn-ink" href="' + esc(r.url) + '" target="_blank" rel="noopener">在 Google 地圖開啟</a>' +
+          '<button class="btn btn-line" data-redraw>再抽一次</button>' +
+        '</div>' +
+      '</div>' +
+      cycleNote +
+      '<p class="count">符合條件共 ' + total + ' 間，這輪已抽 ' + shown.size + ' 間</p>' + few;
+    el.hidden = false;
+    if (!reduceMotion) { void el.offsetWidth; el.classList.add('enter'); }
+    el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+  }
+
+  // ---------- 訊息 ----------
+  function showMessage(m) {
+    const box = $('#msg');
+    box.innerHTML = '<strong>' + esc(m.title) + '</strong>' + m.body.map((p) => '<p>' + esc(p) + '</p>').join('') +
+      (m.actions && m.actions.length ? '<div class="msg-actions">' + m.actions.map((a) =>
+        '<button class="small-btn" data-fix="' + a.fix + '">' + esc(a.label) + '</button>').join('') + '</div>' : '');
+    box.hidden = false;
+    box.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
+  }
+  function hideMessage() { $('#msg').hidden = true; }
+
+  function showEmpty() {
+    const actions = [];
+    if (state.distance === 'walk') actions.push({ fix: 'scooter', label: '改成機車範圍' });
+    if (state.price !== 'any') actions.push({ fix: 'price-any', label: '價格改成不限' });
+    if (state.cuisine !== 'any') actions.push({ fix: 'cuisine-any', label: '種類改成不限' });
+    if (state.openOnly) actions.push({ fix: 'show-closed', label: '也顯示休息中的店' });
+    showMessage({ title: '這個範圍內沒有符合條件的餐廳', body: ['放寬一個條件再抽一次：'], actions });
+  }
+
+  function explain(e) {
+    const code = e && e.code;
+    const keyActions = [{ fix: 'settings', label: '更換金鑰' }, { fix: 'guide', label: '看設定教學' }];
+    if (code === 'geo-denied') return { title: '沒有取得定位權限', body: ['請到手機的設定，允許瀏覽器使用位置，再重新抽一次。'] };
+    if (code === 'geo-fail' || code === 'geo-none') return { title: '暫時抓不到你的位置', body: ['請確認手機定位已開啟，到收訊較好的地方再試一次。'] };
+    if (code === 'maps-load') return { title: '無法連上 Google 地圖服務', body: ['請確認網路連線後重新整理頁面。'] };
+    if (code === 'auth') return { title: '這組金鑰目前無法使用', body: ['可能原因：金鑰貼錯、尚未綁定帳單、尚未啟用兩個服務，或「網站限制」沒有包含這個網址。剛建立的金鑰需要幾分鐘生效。'], actions: keyActions };
+    const msg = String((e && (e.message || e)) || '');
+    if (/RESOURCE_EXHAUSTED|quota|OVER_QUERY_LIMIT/i.test(msg)) return { title: '已達查詢次數上限', body: ['已經用到你在 Google Cloud 設定的上限，明天會自動恢復。也可以到 Google Cloud 調高上限。'] };
+    if (/PERMISSION_DENIED|REQUEST_DENIED|API_KEY|API key|not authorized|has not been used|disabled|billing/i.test(msg))
+      return { title: '金鑰還不能查詢餐廳', body: ['請確認：已啟用 Places API (New)、已綁定帳單、網站限制包含這個網址。剛設定好的話，等 5 分鐘再試。'], actions: keyActions };
+    return { title: '查詢失敗', body: ['請稍後再試一次。', '錯誤訊息：' + msg.slice(0, 160)] };
+  }
+
+  // ---------- 修正建議按鈕 ----------
+  document.addEventListener('click', (e) => {
+    const fix = e.target.closest('[data-fix]');
+    if (fix) {
+      const f = fix.dataset.fix;
+      if (f === 'scooter') setFilter('distance', 'scooter');
+      else if (f === 'price-any') setFilter('price', 'any');
+      else if (f === 'cuisine-any') setFilter('cuisine', 'any');
+      else if (f === 'show-closed') setFilter('openOnly', false);
+      else if (f === 'settings') { openSettings(); return; }
+      else if (f === 'guide') { openGuide('main'); return; }
+      draw();
+      return;
+    }
+    if (e.target.closest('[data-redraw]')) { draw(); return; }
+    if (e.target.closest('[data-guide]')) { openGuide(document.querySelector('.screen:not([hidden])').id); return; }
+    const back = e.target.closest('[data-back]');
+    if (back) show(back.dataset.back);
+  });
+  $('#drawBtn').addEventListener('click', draw);
+
+  // ---------- 金鑰設定 ----------
+  $('#saveKey').addEventListener('click', () => {
+    const k = $('#keyInput').value.trim();
+    const err = $('#keyError');
+    if (!/^AIza[0-9A-Za-z_\-]{30,}$/.test(k)) {
+      err.textContent = '這看起來不像 Google API 金鑰。金鑰通常以 AIza 開頭、約 39 個字元，請確認有完整複製。';
+      err.hidden = false; return;
+    }
+    store.set(KEY_STORE, k);
+    location.reload();
+  });
+  function openSettings() {
+    const k = store.get(KEY_STORE) || '';
+    $('#maskedKey').textContent = k ? '••••••••' + k.slice(-4) : '尚未設定';
+    show('settings');
+  }
+  $('#openSettings').addEventListener('click', openSettings);
+  $('#changeKey').addEventListener('click', () => { $('#keyInput').value = ''; $('#keyError').hidden = true; show('setup'); });
+  $('#clearKey').addEventListener('click', () => {
+    if (confirm('確定要從這支手機清除金鑰嗎？之後需要重新貼上才能使用。')) { store.del(KEY_STORE); location.reload(); }
+  });
+
+  // ---------- 教學 ----------
+  function openGuide(from) { guideReturn = from || 'setup'; show('guide'); }
+  $('#guideBack').addEventListener('click', () => show(guideReturn));
+  $('#guideDone').addEventListener('click', () => { $('#keyInput').value = ''; show('setup'); });
+  const siteRule = location.origin + location.pathname.replace(/[^/]*$/, '') + '*';
+  $('#siteRule').textContent = siteRule;
+  if (!/^https?:/.test(location.protocol)) $('#fileWarn').hidden = false;
+  $('#copyRule').addEventListener('click', async () => {
+    const b = $('#copyRule');
+    try { await navigator.clipboard.writeText(siteRule); b.textContent = '已複製'; }
+    catch (e) {
+      const range = document.createRange(); range.selectNodeContents($('#siteRule'));
+      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      b.textContent = '請手動複製';
+    }
+    setTimeout(() => { b.textContent = '複製'; }, 2000);
+  });
+
+  // ---------- 啟動 ----------
+  renderControls();
+  const savedKey = store.get(KEY_STORE);
+  if (savedKey) {
+    show('main');
+    mapsPromise = loadMaps(savedKey).catch((e) => { showMessage(explain(e)); });
+  } else {
+    show('setup');
+  }
+})();
+</script>
+</body>
+</html>
