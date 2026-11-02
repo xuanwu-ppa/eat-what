@@ -54,6 +54,7 @@ h2{font-family:var(--serif);font-weight:900;font-size:1.5rem;line-height:1.3;mar
 
 /* filters */
 .group{margin-bottom:16px}
+.seg-note{font-size:.85rem;color:var(--jade);margin:8px 0 0}
 .group-label{font-size:.85rem;color:var(--muted);margin-bottom:6px}
 .seg{display:flex;flex-wrap:wrap;gap:8px}
 .seg button{border:1px solid var(--line);background:var(--chip);border-radius:8px;padding:8px 14px;font-size:.95rem;min-height:40px}
@@ -159,6 +160,7 @@ footer{margin-top:36px;color:var(--muted);font-size:.78rem;text-align:center}
       <button data-value="walk">步行 10 分鐘內</button>
       <button data-value="scooter">機車 10 分鐘內</button>
     </div>
+    <p class="seg-note" id="distNote" hidden>機車模式不含步行 10 分鐘內（700 公尺內）的店，抽出來的都是值得騎車去的距離。</p>
   </div>
   <div class="group">
     <div class="group-label">每人價格</div>
@@ -177,6 +179,8 @@ footer{margin-top:36px;color:var(--muted);font-size:.78rem;text-align:center}
       <button data-value="jp">日式</button>
       <button data-value="sea">東南亞</button>
       <button data-value="other">其他</button>
+      <button data-value="cafe">咖啡廳</button>
+      <button data-value="dessert">甜點</button>
     </div>
   </div>
   <div class="switches">
@@ -227,7 +231,7 @@ footer{margin-top:36px;color:var(--muted);font-size:.78rem;text-align:center}
 
   <div class="callout">
     <strong>會花錢嗎？</strong><br>
-    Google 要求綁信用卡，但每月有免費額度。換地點、距離或種類後第一次抽，會查詢 2 到 3 次；之後按「再抽一次」不會再查詢。每月免費的查詢次數，一般日常吃飯用不完。第 7 步會教你設上限，避免意外。
+    Google 要求綁信用卡，但每月有免費額度。換地點、距離或種類後第一次抽，步行模式會查詢 2 到 3 次，機車模式 3 到 5 次；之後按「再抽一次」不會再查詢。每月免費的查詢次數，一般日常吃飯用不完。第 7 步會教你設上限，避免意外。
   </div>
 
   <ol class="steps">
@@ -289,11 +293,15 @@ footer{margin-top:36px;color:var(--muted);font-size:.78rem;text-align:center}
 
   // ---------- 設定值 ----------
   const RADIUS = { walk: 700, scooter: 3000 };          // 公尺
-  const CUISINE_LABEL = { tw: '台式', jp: '日式', sea: '東南亞', other: '其他' };
+  const WALK_RADIUS = RADIUS.walk;                      // 機車模式排除這個範圍內的店
+  const CUISINE_LABEL = { tw: '台式', jp: '日式', sea: '東南亞', other: '其他', cafe: '咖啡廳', dessert: '甜點' };
+  const MEAL_CUISINES = ['tw', 'jp', 'sea', 'other'];   // 「不限」只抽正餐
   const CACHE_MINUTES = 15;
 
   const JP_TYPES = ['japanese_restaurant', 'ramen_restaurant', 'sushi_restaurant'];
   const SEA_TYPES = ['thai_restaurant', 'vietnamese_restaurant', 'indonesian_restaurant'];
+  const CAFE_TYPES = ['cafe', 'coffee_shop'];
+  const DESSERT_TYPES = ['dessert_shop', 'dessert_restaurant', 'ice_cream_shop', 'bakery'];
   // 只用來判斷分類（不會送給 Google）
   const JP_TYPE_HINTS = JP_TYPES.concat(['japanese_izakaya_restaurant', 'izakaya_restaurant', 'yakiniku_restaurant', 'yakitori_restaurant', 'tonkatsu_restaurant', 'japanese_curry_restaurant']);
   const SEA_TYPE_HINTS = SEA_TYPES.concat(['malaysian_restaurant', 'singaporean_restaurant', 'filipino_restaurant', 'burmese_restaurant', 'southeast_asian_restaurant']);
@@ -302,6 +310,19 @@ footer{margin-top:36px;color:var(--muted);font-size:.78rem;text-align:center}
   const SEA_KW = ['泰', '越南', '河粉', '南洋', '馬來', '印尼', '星馬', '新加坡', '打拋', '緬甸', '叻沙', '海南雞'];
   const TW_KW = ['小吃', '麵', '飯', '便當', '滷', '魯肉', '熱炒', '快炒', '鍋貼', '水餃', '臭豆腐', '豆花', '肉圓', '蚵仔', '擔仔', '粥', '米粉', '粿', '雞排', '鹽酥', '鹹酥', '台式', '臺式', '古早味', '自助餐', '麵線', '排骨', '控肉', '焢肉', '湯包', '小籠', '豆漿', '滷味', '切仔'];
   const FOOD_TYPES = ['restaurant', 'food', 'meal_takeaway', 'meal_delivery'];
+  // 以「主要類型」判斷是不是吃飯的地方，排除附設餐飲的旅館、KTV 等
+  const EATERY_PRIMARY = ['restaurant', 'food', 'meal_takeaway', 'meal_delivery', 'diner', 'food_court', 'bar_and_grill'];
+  const NON_EATERY = ['lodging', 'hotel', 'motel', 'hostel', 'bed_and_breakfast', 'resort_hotel', 'inn', 'guest_house',
+    'karaoke', 'night_club', 'bar', 'pub', 'wine_bar', 'event_venue', 'wedding_venue', 'banquet_hall',
+    'movie_theater', 'amusement_center', 'spa', 'gym',
+    'tea_house', 'juice_shop', 'convenience_store', 'supermarket', 'grocery_store',
+    'market', 'department_store', 'shopping_mall'];
+  function isEatery(p) {
+    const pt = p.primaryType;
+    if (pt && (CAFE_TYPES.includes(pt) || DESSERT_TYPES.includes(pt))) return true;
+    if (pt) return EATERY_PRIMARY.includes(pt) || (pt.endsWith('_restaurant') && !NON_EATERY.includes(pt));
+    return hasAny(p.types, FOOD_TYPES) && !hasAny(p.types, NON_EATERY);
+  }
 
   const FIELDS = ['id', 'displayName', 'location', 'types', 'primaryType', 'primaryTypeDisplayName',
     'formattedAddress', 'googleMapsURI', 'businessStatus', 'rating', 'userRatingCount',
@@ -338,6 +359,7 @@ footer{margin-top:36px;color:var(--muted);font-size:.78rem;text-align:center}
       const key = seg.dataset.key;
       seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.value === state[key])));
     });
+    $('#distNote').hidden = state.distance !== 'scooter';
     $('#openOnly').checked = state.openOnly;
     $('#includeUnpriced').checked = state.includeUnpriced;
   }
@@ -401,33 +423,48 @@ footer{margin-top:36px;color:var(--muted);font-size:.78rem;text-align:center}
   const nameHas = (name, list) => list.some((k) => name.includes(k));
 
   // ---------- 搜尋餐廳 ----------
-  function searchPlan(cuisine) {
-    const nearby = (included, rank, excluded) => ({ kind: 'nearby', included, rank, excluded });
-    const text = (q) => ({ kind: 'text', q, hint: 'tw' });
+  // 附近搜尋的範圍：步行用一個 700 公尺的圓；機車用四個往外偏移的圓，
+  // 讓結果集中在步行範圍之外（Google 一次最多回傳 20 間）
+  function nearbyAreas(center, distance) {
+    if (distance === 'walk') {
+      return [{ center, radius: RADIUS.walk, rank: 'POPULARITY' }, { center, radius: RADIUS.walk, rank: 'DISTANCE' }];
+    }
+    const off = 1600, r = 1600;
+    const dLat = off / 111320, dLng = off / (111320 * Math.cos(center.lat * Math.PI / 180));
+    return [[dLat, 0], [-dLat, 0], [0, dLng], [0, -dLng]].map(([a, b]) =>
+      ({ center: { lat: center.lat + a, lng: center.lng + b }, radius: r, rank: 'POPULARITY' }));
+  }
+
+  function searchPlan(cuisine, center, distance) {
+    const areas = nearbyAreas(center, distance);
+    const nearby = (included, excluded) => areas.map((a) => ({ kind: 'nearby', included, excluded, rank: a.rank, center: a.center, radius: a.radius }));
+    const text = (q) => ({ kind: 'text', q, hint: 'tw', center, radius: RADIUS[distance] });
     const excl = JP_TYPES.concat(SEA_TYPES);
     switch (cuisine) {
       case 'tw': return [text('台式料理'), text('小吃'), text('便當 麵店')];
-      case 'jp': return [nearby(JP_TYPES, 'POPULARITY'), nearby(JP_TYPES, 'DISTANCE')];
-      case 'sea': return [nearby(SEA_TYPES, 'POPULARITY'), nearby(SEA_TYPES, 'DISTANCE')];
-      case 'other': return [nearby(['restaurant'], 'POPULARITY', excl), nearby(['restaurant'], 'DISTANCE', excl)];
-      default: return [nearby(['restaurant'], 'POPULARITY'), nearby(['restaurant'], 'DISTANCE'), text('小吃')];
+      case 'jp': return nearby(JP_TYPES);
+      case 'sea': return nearby(SEA_TYPES);
+      case 'other': return nearby(['restaurant'], excl);
+      case 'cafe': return nearby(CAFE_TYPES);
+      case 'dessert': return nearby(DESSERT_TYPES);
+      default: return nearby(['restaurant']).concat([text('小吃')]);
     }
   }
 
-  async function runQuery(step, center, radius) {
+  async function runQuery(step) {
     const { Place, SearchNearbyRankPreference } = placesLib;
     let res;
     if (step.kind === 'nearby') {
       const req = {
         fields: FIELDS,
-        locationRestriction: { center, radius },
+        locationRestriction: { center: step.center, radius: step.radius },
         includedTypes: step.included,
         rankPreference: SearchNearbyRankPreference[step.rank]
       };
       if (step.excluded) req.excludedPrimaryTypes = step.excluded;
       res = await Place.searchNearby(req);
     } else {
-      res = await Place.searchByText({ textQuery: step.q, fields: FIELDS, locationRestriction: boundsFor(center, radius) });
+      res = await Place.searchByText({ textQuery: step.q, fields: FIELDS, locationRestriction: boundsFor(step.center, step.radius) });
     }
     return (res.places || []).map((p) => ({ p, hint: step.hint || null }));
   }
@@ -435,6 +472,8 @@ footer{margin-top:36px;color:var(--muted);font-size:.78rem;text-align:center}
   function classify(p, hint) {
     const types = p.types || [];
     const name = p.displayName || '';
+    if (CAFE_TYPES.includes(p.primaryType)) return 'cafe';
+    if (DESSERT_TYPES.includes(p.primaryType)) return 'dessert';
     if (hasAny(types, JP_TYPE_HINTS)) return 'jp';
     if (hasAny(types, SEA_TYPE_HINTS)) return 'sea';
     if (types.includes('taiwanese_restaurant')) return 'tw';
@@ -486,7 +525,7 @@ footer{margin-top:36px;color:var(--muted);font-size:.78rem;text-align:center}
 
   async function buildPool(center, distance, cuisine) {
     const radius = RADIUS[distance];
-    const settled = await Promise.allSettled(searchPlan(cuisine).map((s) => runQuery(s, center, radius)));
+    const settled = await Promise.allSettled(searchPlan(cuisine, center, distance).map((s) => runQuery(s)));
     const ok = settled.filter((r) => r.status === 'fulfilled');
     if (!ok.length) throw settled[0].reason;
 
@@ -497,10 +536,11 @@ footer{margin-top:36px;color:var(--muted);font-size:.78rem;text-align:center}
     for (const { p, hint } of seen.values()) {
       if (!p.location) continue;
       if (p.businessStatus && p.businessStatus !== 'OPERATIONAL') continue;
-      if (!hasAny(p.types, FOOD_TYPES)) continue;
+      if (!isEatery(p)) continue;
       const loc = { lat: p.location.lat(), lng: p.location.lng() };
       const d = distanceM(center, loc);
       if (d > radius) continue;
+      if (distance === 'scooter' && d <= WALK_RADIUS) continue;
       items.push({ p, hint, d, loc });
     }
     const openStates = await Promise.all(items.map(async ({ p }) => {
@@ -530,7 +570,7 @@ footer{margin-top:36px;color:var(--muted);font-size:.78rem;text-align:center}
 
   function eligible() {
     return pool.filter((r) =>
-      (state.cuisine === 'any' || r.cuisine === state.cuisine) &&
+      (state.cuisine === 'any' ? MEAL_CUISINES.includes(r.cuisine) : r.cuisine === state.cuisine) &&
       (state.price === 'any' ? true : r.priceBucket === null ? state.includeUnpriced : r.priceBucket === state.price) &&
       (!state.openOnly || r.open === true)
     );
@@ -644,6 +684,7 @@ footer{margin-top:36px;color:var(--muted);font-size:.78rem;text-align:center}
   function showEmpty() {
     const actions = [];
     if (state.distance === 'walk') actions.push({ fix: 'scooter', label: '改成機車範圍' });
+    else actions.push({ fix: 'walk', label: '改成步行範圍' });
     if (state.price !== 'any') actions.push({ fix: 'price-any', label: '價格改成不限' });
     if (state.cuisine !== 'any') actions.push({ fix: 'cuisine-any', label: '種類改成不限' });
     if (state.openOnly) actions.push({ fix: 'show-closed', label: '也顯示休息中的店' });
@@ -670,6 +711,7 @@ footer{margin-top:36px;color:var(--muted);font-size:.78rem;text-align:center}
     if (fix) {
       const f = fix.dataset.fix;
       if (f === 'scooter') setFilter('distance', 'scooter');
+      else if (f === 'walk') setFilter('distance', 'walk');
       else if (f === 'price-any') setFilter('price', 'any');
       else if (f === 'cuisine-any') setFilter('cuisine', 'any');
       else if (f === 'show-closed') setFilter('openOnly', false);
