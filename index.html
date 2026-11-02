@@ -317,7 +317,10 @@ footer{margin-top:36px;color:var(--muted);font-size:.78rem;text-align:center}
     'movie_theater', 'amusement_center', 'spa', 'gym',
     'tea_house', 'juice_shop', 'convenience_store', 'supermarket', 'grocery_store',
     'market', 'department_store', 'shopping_mall'];
+  // Google 上有些 KTV、旅館被歸類成「餐廳」或沒有主要類型，所以再用店名排除
+  const NON_EATERY_NAME = /ktv|卡拉\s*ok|歡唱|聚唱|錢櫃|好樂迪|星聚點|汽車旅館|旅館|旅店|商旅|民宿|大飯店|酒店|motel|hotel|hostel|網咖|撞球|保齡球/i;
   function isEatery(p) {
+    if (NON_EATERY_NAME.test(p.displayName || '')) return false;
     const pt = p.primaryType;
     if (pt && (CAFE_TYPES.includes(pt) || DESSERT_TYPES.includes(pt))) return true;
     if (pt) return EATERY_PRIMARY.includes(pt) || (pt.endsWith('_restaurant') && !NON_EATERY.includes(pt));
