@@ -231,7 +231,7 @@ footer{margin-top:36px;color:var(--muted);font-size:.78rem;text-align:center}
 
   <div class="callout">
     <strong>會花錢嗎？</strong><br>
-    Google 要求綁信用卡，但每月有免費額度。換地點、距離或種類後第一次抽，步行模式會查詢 2 到 3 次，機車模式 3 到 5 次；之後按「再抽一次」不會再查詢。每月免費的查詢次數，一般日常吃飯用不完。第 7 步會教你設上限，避免意外。
+    Google 要求綁信用卡，但每月有免費額度。換地點、距離或種類後第一次抽，會查詢 2 到 3 次，附近店家太少時會再補查 1 次；之後按「再抽一次」不會再查詢。每月免費的查詢次數，一般日常吃飯用不完。第 7 步會教你設上限，避免意外。
   </div>
 
   <ol class="steps">
@@ -426,32 +426,64 @@ footer{margin-top:36px;color:var(--muted);font-size:.78rem;text-align:center}
   const nameHas = (name, list) => list.some((k) => name.includes(k));
 
   // ---------- 搜尋餐廳 ----------
-  // 附近搜尋的範圍：步行用一個 700 公尺的圓；機車用四個往外偏移的圓，
-  // 讓結果集中在步行範圍之外（Google 一次最多回傳 20 間）
-  function nearbyAreas(center, distance) {
-    if (distance === 'walk') {
-      return [{ center, radius: RADIUS.walk, rank: 'POPULARITY' }, { center, radius: RADIUS.walk, rank: 'DISTANCE' }];
+  // ---- 隨機點搜尋 ----
+  // 每次換名單時，在範圍內產生幾個隨機點，以「離該點最近」查詢，
+  // 讓每份名單抽查範圍內不同的區塊，而不是每次都拿到同一批熱門店
+  const POINT_RING = { walk: [150, 500], scooter: [1000, 2700] };   // 隨機點離你的距離（公尺）
+  const QUERY_RADIUS = { walk: 400, scooter: 1500 };                // 每個隨機點的查詢半徑
+  const MIN_POOL = 5;                                               // 少於這個數字就補查一次
+
+  function offsetPoint(c, east, north) {
+    return { lat: c.lat + north / 111320, lng: c.lng + east / (111320 * Math.cos(c.lat * Math.PI / 180)) };
+  }
+  // n 個點平均分散在不同方向（隨機起始角度），距離在環狀區域內依面積平均分布
+  function randomPoints(center, distance, n) {
+    const [r1, r2] = POINT_RING[distance];
+    const base = Math.random() * 2 * Math.PI;
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+      const ang = base + i * 2 * Math.PI / n;
+      const r = Math.sqrt(Math.random() * (r2 * r2 - r1 * r1) + r1 * r1);
+      pts.push(offsetPoint(center, r * Math.cos(ang), r * Math.sin(ang)));
     }
-    const off = 1600, r = 1600;
-    const dLat = off / 111320, dLng = off / (111320 * Math.cos(center.lat * Math.PI / 180));
-    return [[dLat, 0], [-dLat, 0], [0, dLng], [0, -dLng]].map(([a, b]) =>
-      ({ center: { lat: center.lat + a, lng: center.lng + b }, radius: r, rank: 'POPULARITY' }));
+    return pts;
+  }
+
+  function typesFor(cuisine) {
+    switch (cuisine) {
+      case 'jp': return { included: JP_TYPES };
+      case 'sea': return { included: SEA_TYPES };
+      case 'other': return { included: ['restaurant'], excluded: JP_TYPES.concat(SEA_TYPES) };
+      case 'cafe': return { included: CAFE_TYPES };
+      case 'dessert': return { included: DESSERT_TYPES };
+      default: return { included: ['restaurant'] };
+    }
   }
 
   function searchPlan(cuisine, center, distance) {
-    const areas = nearbyAreas(center, distance);
-    const nearby = (included, excluded) => areas.map((a) => ({ kind: 'nearby', included, excluded, rank: a.rank, center: a.center, radius: a.radius }));
-    const text = (q) => ({ kind: 'text', q, hint: 'tw', center, radius: RADIUS[distance] });
-    const excl = JP_TYPES.concat(SEA_TYPES);
-    switch (cuisine) {
-      case 'tw': return [text('台式料理'), text('小吃'), text('便當 麵店')];
-      case 'jp': return nearby(JP_TYPES);
-      case 'sea': return nearby(SEA_TYPES);
-      case 'other': return nearby(['restaurant'], excl);
-      case 'cafe': return nearby(CAFE_TYPES);
-      case 'dessert': return nearby(DESSERT_TYPES);
-      default: return nearby(['restaurant']).concat([text('小吃')]);
+    const qr = QUERY_RADIUS[distance];
+    const nb = (pt, t) => ({ kind: 'nearby', included: t.included, excluded: t.excluded, rank: 'DISTANCE', center: pt, radius: qr });
+    const tx = (pt, q) => ({ kind: 'text', q, hint: 'tw', center: pt, radius: qr });
+    if (cuisine === 'tw') {
+      const pts = randomPoints(center, distance, 3);
+      return [tx(pts[0], '台式料理'), tx(pts[1], '小吃'), tx(pts[2], '便當 麵店')];
     }
+    if (cuisine === 'any') {
+      const pts = randomPoints(center, distance, 3);
+      const t = typesFor('any');
+      return [nb(pts[0], t), nb(pts[1], t), tx(pts[2], '小吃')];
+    }
+    const t = typesFor(cuisine);
+    return randomPoints(center, distance, 2).map((pt) => nb(pt, t));
+  }
+
+  // 名單太小時的補查：步行查你身邊最近的店；機車以你為中心查 3 公里內熱門的店
+  function fallbackPlan(cuisine, center, distance) {
+    const radius = RADIUS[distance];
+    if (cuisine === 'tw') return [{ kind: 'text', q: '台式料理', hint: 'tw', center, radius }];
+    const t = typesFor(cuisine);
+    return [{ kind: 'nearby', included: t.included, excluded: t.excluded,
+      rank: distance === 'walk' ? 'DISTANCE' : 'POPULARITY', center, radius }];
   }
 
   async function runQuery(step) {
@@ -526,9 +558,9 @@ footer{margin-top:36px;color:var(--muted);font-size:.78rem;text-align:center}
     return false;
   }
 
-  async function buildPool(center, distance, cuisine) {
+  async function fetchItems(steps, center, distance) {
     const radius = RADIUS[distance];
-    const settled = await Promise.allSettled(searchPlan(cuisine, center, distance).map((s) => runQuery(s)));
+    const settled = await Promise.allSettled(steps.map((s) => runQuery(s)));
     const ok = settled.filter((r) => r.status === 'fulfilled');
     if (!ok.length) throw settled[0].reason;
 
@@ -595,12 +627,19 @@ footer{margin-top:36px;color:var(--muted);font-size:.78rem;text-align:center}
       if (!placesLib) throw { code: 'maps-load' };
       const pos = await getPosition();
       const key = pos.lat.toFixed(3) + ',' + pos.lng.toFixed(3) + '|' + state.distance + '|' + state.cuisine;
-      const hit = cache.get(key);
-      if (hit && Date.now() - hit.t < CACHE_MINUTES * 60000) {
-        pool = hit.pool;
-      } else {
-        pool = await buildPool(pos, state.distance, state.cuisine);
-        cache.set(key, { t: Date.now(), pool });
+      let entry = cache.get(key);
+      if (!entry || Date.now() - entry.t >= CACHE_MINUTES * 60000) {
+        entry = { t: Date.now(), pool: await fetchItems(searchPlan(state.cuisine, pos, state.distance), pos, state.distance), supplemented: false };
+        cache.set(key, entry);
+      }
+      pool = entry.pool;
+      if (!entry.supplemented && eligible().length < MIN_POOL) {
+        entry.supplemented = true;
+        try {
+          const extra = await fetchItems(fallbackPlan(state.cuisine, pos, state.distance), pos, state.distance);
+          const ids = new Set(pool.map((r) => r.id));
+          entry.pool = pool = pool.concat(extra.filter((r) => !ids.has(r.id)));
+        } catch (e) { /* 補查失敗就用原本的名單 */ }
       }
       if (key !== poolKey) { poolKey = key; shown.clear(); }
       await minWait;
